@@ -1,6 +1,5 @@
 package io.indico.api.utils;
 
-import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FilenameUtils;
 import org.imgscalr.Scalr;
 
@@ -13,11 +12,13 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
 import javax.imageio.ImageIO;
+
 
 /**
  * Created by Chris on 6/23/15.
@@ -29,10 +30,8 @@ public class ImageUtils {
 
         try {
             ImageIO.write(image, "PNG", bos);
-            byte[] imageBytes = bos.toByteArray();
-
-            imageString = Base64.encodeBase64String(imageBytes);
-
+            imageString = Base64.getEncoder()
+            		.encodeToString(bos.toByteArray());
             bos.close();
         } catch (IOException e) {
             e.printStackTrace();
@@ -115,7 +114,7 @@ public class ImageUtils {
 //                    throw new IllegalArgumentException("Invalid input image. Only file paths, base64 string, and urls are supported");
                 }
 
-                image = ImageIO.read(new ByteArrayInputStream(Base64.decodeBase64(imageString)));
+                image = ImageIO.read(new ByteArrayInputStream(Base64.getDecoder().decode(imageString)));
                 return handleImage(image, size, minAxis);
             }
         }

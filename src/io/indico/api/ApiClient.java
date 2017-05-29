@@ -2,13 +2,12 @@ package io.indico.api;
 
 import com.google.gson.Gson;
 
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.HttpClients;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,10 +24,14 @@ import io.indico.api.results.BatchIndicoResult;
 import io.indico.api.results.IndicoResult;
 import io.indico.api.utils.IndicoException;
 
+
 public class ApiClient {
     private final static String PUBLIC_BASE_URL = "https://apiv2.indico.io";
+    private final static MediaType JSON = 
+    		MediaType.parse("application/json; charset=utf-8");
 
-    private static HttpClient httpClient = HttpClients.createDefault();
+    private static OkHttpClient httpClient = new OkHttpClient();
+//    private static HttpClient httpClient = HttpClients.createDefault();
     public String baseUrl, apiKey, privateCloud;
 
     public ApiClient(String apiKey, String privateCloud) throws IndicoException {
@@ -43,6 +46,7 @@ public class ApiClient {
         return new IndicoResult(api, apiResponse);
     }
 
+    
     @SuppressWarnings("unchecked")
     BatchIndicoResult call(Api api, Map<String, Object> data, Map<String, Object> extraParams)
         throws UnsupportedOperationException, IOException, IndicoException {
@@ -50,6 +54,7 @@ public class ApiClient {
         return new BatchIndicoResult(api, apiResponse);
     }
 
+    
     @SuppressWarnings("unchecked")
     BatchIndicoResult call(Api api, List<String> data, Map<String, Object> extraParams)
         throws UnsupportedOperationException, IOException, IndicoException {
@@ -58,12 +63,15 @@ public class ApiClient {
         return new BatchIndicoResult(api, apiResponse);
     }
 
+    
     Map<String, ?> baseCall(Api api, Object data, boolean batch, Map<String, Object> extraParams)
         throws UnsupportedOperationException, IOException, IndicoException {
         if (extraParams!= null && !extraParams.containsKey("version")) {
             extraParams.put("version", api.get("version") == null ? "1" : api.get("version"));
         }
-        HttpResponse response = httpClient.execute(getBasePost(api, data, extraParams, null, batch));
+        Response response = httpClient.newCall(getBasePost(api, data, extraParams, null, batch)).execute();
+
+//        HttpResponse response = httpClient.execute(getBasePost(api, data, extraParams, null, batch));
         return handleResponse(response);
     }
 
@@ -73,23 +81,28 @@ public class ApiClient {
         if (extraParams!= null && !extraParams.containsKey("version")) {
             extraParams.put("version", api.get("version") == null ? "1" : api.get("version"));
         }
-        HttpResponse response = httpClient.execute(getBasePost(api, data, extraParams, method, batch));
+        Response response = httpClient.newCall(getBasePost(api, data, extraParams, null, batch)).execute();
+
+//        HttpResponse response = httpClient.execute(getBasePost(api, data, extraParams, method, batch));
         return handleResponse(response);
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, ?> handleResponse(HttpResponse response) throws IOException {
-        HttpEntity entity = response.getEntity();
+    private Map<String, ?> handleResponse(Response response) throws IOException {
+    	
+//        HttpEntity entity = response.getEntity();
+//        Header warning = response.getFirstHeader("X-Warning");
 
-        Header warning = response.getFirstHeader("X-Warning");
-
-        if (warning != null && warning.getValue() != null) {
-            Logger.getLogger("indico").log(Level.WARNING, warning.getValue());
+        ResponseBody entity = response.body();
+        String warning = response.header("X-Warning");
+        
+        if (warning != null) {
+            Logger.getLogger("indico").log(Level.WARNING, warning);
         }
 
         Map<String, ?> apiResponse = new HashMap<>();
         if (entity != null) {
-            InputStream responseStream = entity.getContent();
+            InputStream responseStream = entity.byteStream();
             Reader reader = new InputStreamReader(responseStream, "UTF-8");
             try {
                 apiResponse = new Gson().fromJson(reader, Map.class);
@@ -100,18 +113,20 @@ public class ApiClient {
         return apiResponse;
     }
 
-    private HttpPost getBasePost(Api api, Object data, Map<String, Object> extraParams, String method, boolean batch)
+    private Request getBasePost(Api api, Object data, Map<String, Object> extraParams, String method, boolean batch)
         throws UnsupportedEncodingException, IndicoException {
-
+    	
+    	//URL construction stays the same
         String url = baseUrl
             + (api.type == ApiType.Multi ? "/apis" : "")
             + "/" + api.toString()
             + (batch ? "/batch" : "")
             + (method != null ? "/" + method : "")
             + addUrlParams(api, extraParams);
+        
+//        HttpPost basePost = new HttpPost(url);
 
-        HttpPost basePost = new HttpPost(url);
-
+        //body construction stays the same
         Map<String, Object> rawParams = new HashMap<>();
         if (api == Api.Persona) {
             rawParams.put("persona", true);
@@ -128,17 +143,28 @@ public class ApiClient {
         }
 
         String entity = new Gson().toJson(rawParams);
-        StringEntity params = new StringEntity(entity, "utf-8");
-        params.setContentType("application/json");
-        basePost.setEntity(params);
+//        StringEntity params = new StringEntity(entity, "utf-8");
+//        params.setContentType("application/json");
+//        basePost.setEntity(params);
 
-        basePost.addHeader("content-type", "application/json");
-        basePost.addHeader("client-lib", "java");
-        basePost.addHeader("client-lib", "3.2");
-        basePost.addHeader("Accept-Charset", "utf-8");
-        basePost.addHeader("X-ApiKey", apiKey);
+//        basePost.addHeader("content-type", "application/json");
+//        basePost.addHeader("client-lib", "java");
+//        basePost.addHeader("client-lib", "3.2");
+//        basePost.addHeader("Accept-Charset", "utf-8");
+//        basePost.addHeader("X-ApiKey", apiKey);
+        
+        RequestBody body = RequestBody.create(JSON, entity);
+        Request request = new Request.Builder()
+            .url(url)
+            .post(body)
+            .addHeader("content-type", "application/json")
+            .addHeader("client-lib", "java")
+            .addHeader("client-lib", "3.2")
+            .addHeader("Accept-Charset", "utf-8")
+            .addHeader("X-ApiKey", apiKey)
+            .build();
 
-        return basePost;
+        return request;
     }
 
     private String addUrlParams(Api api, Map<String, Object> extraParams) throws IndicoException {
