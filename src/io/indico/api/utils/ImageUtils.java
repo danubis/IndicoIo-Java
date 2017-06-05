@@ -1,6 +1,6 @@
 package io.indico.api.utils;
 
-import org.apache.commons.io.FilenameUtils;
+
 import org.imgscalr.Scalr;
 
 import java.awt.Rectangle;
@@ -127,27 +127,5 @@ public class ImageUtils {
 
         Scalr.Mode method = minAxis ? Scalr.Mode.AUTOMATIC : Scalr.Mode.FIT_EXACT;
         return Scalr.resize(image, method, size);
-    }
-
-
-    public static String grabType(File imageFile) throws IOException {
-        return FilenameUtils.getExtension(imageFile.getName());
-    }
-
-    public static String grabType(List<?> images) {
-        String type;
-        Object entry = images.get(0);
-
-        if (entry instanceof File) {
-            type = FilenameUtils.getExtension(((File) entry).getName());
-        } else if (entry instanceof String) {
-            type = FilenameUtils.getExtension((String) entry);
-        } else {
-            throw new IllegalArgumentException(
-                "imageCall method only supports lists of Files and lists of Strings"
-            );
-        }
-
-        return type;
     }
 }
